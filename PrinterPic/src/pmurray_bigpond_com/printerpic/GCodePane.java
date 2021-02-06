@@ -96,21 +96,22 @@ public class GCodePane extends JComponent {
 	}
 
 	void moveTo(int xmm, int ymm) {
-		gcode.add(new MoveTo((float) xmm, (float) ymm));
+		synchronized (gcode) {
+			gcode.add(new MoveTo((float) xmm, (float) ymm));
+			gcodeUpdated = true;
+		}
 		fireRepainter();
 	}
 
 	void lineTo(int xmm, int ymm) {
-		gcode.add(new LineTo((float) xmm, (float) ymm));
+		synchronized (gcode) {
+			gcode.add(new LineTo((float) xmm, (float) ymm));
+			gcodeUpdated = true;
+		}
 		fireRepainter();
 	}
 
 	public GCodePane() {
-		gcode.add(new MoveTo(10, 10));
-		gcode.add(new LineTo(10, 90));
-		gcode.add(new LineTo(90, 90));
-		gcode.add(new LineTo(90, 10));
-		gcode.add(new LineTo(10, 10));
 	}
 
 	public boolean isBlackOnWhite() {
@@ -201,6 +202,7 @@ class MoveTo extends XY {
 
 	@Override
 	void draw(Path2D path) {
+		path.moveTo(xmm, ymm);
 	}
 
 }

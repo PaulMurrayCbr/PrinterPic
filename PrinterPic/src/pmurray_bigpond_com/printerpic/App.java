@@ -99,6 +99,8 @@ public class App extends JFrame {
 					int mm = Integer.valueOf(f.getText());
 					if (mm > 0) {
 						gcodePAne.setWidthmm(mm);
+						if (img != null)
+							renderImage(img);
 					}
 				} catch (Exception ex) {
 				}
@@ -117,6 +119,8 @@ public class App extends JFrame {
 					int mm = Integer.valueOf(f.getText());
 					if (mm > 0) {
 						gcodePAne.setHeightmm(mm);
+						if (img != null)
+							renderImage(img);
 					}
 				} catch (Exception ex) {
 				}
@@ -140,6 +144,8 @@ public class App extends JFrame {
 					float mm = Float.valueOf(f.getText());
 					if (mm > 0) {
 						gcodePAne.setNozzleWidth(mm);
+						if (img != null)
+							renderImage(img);
 					}
 				} catch (Exception ex) {
 				}
@@ -344,7 +350,11 @@ public class App extends JFrame {
 	}
 
 	void renderImage(BufferedImage img) {
-		new DrawerThread(new SimpleDrawer(img, gcodePAne)).start();
+		if (img == null)
+			return;
+		gcodePAne.clear();
+		// I know it's rude to spawn threads rather than spawing drawers ... but meh.
+		new DrawerThread(new HilbertDrawer(img, gcodePAne)).start();
 
 	}
 
