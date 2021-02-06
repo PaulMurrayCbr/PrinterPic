@@ -17,6 +17,33 @@ import javax.swing.JComponent;
 
 public class GCodePane extends JComponent {
 	int widthmm = 100;
+	public int getWidthmm() {
+		return widthmm;
+	}
+
+	public void setWidthmm(int widthmm) {
+		this.widthmm = widthmm;
+		repaint();
+	}
+
+	public int getHeightmm() {
+		return heightmm;
+	}
+
+	public void setHeightmm(int heightmm) {
+		this.heightmm = heightmm;
+		repaint();
+	}
+
+	public float getNozzleWidth() {
+		return nozzleWidth;
+	}
+
+	public void setNozzleWidth(float nozzleWidth) {
+		this.nozzleWidth = nozzleWidth;
+		repaint();
+	}
+
 	int heightmm = 100;
 	float nozzleWidth = .5f;
 	
@@ -38,11 +65,7 @@ public class GCodePane extends JComponent {
 
 	public void setBlackOnWhite(boolean blackOnWhite) {
 		this.blackOnWhite = blackOnWhite;
-	}
-
-	void setPlate(int widthmm, int heightmm) {
-		this.widthmm = widthmm;
-		this.heightmm = heightmm;
+		repaint();
 	}
 
 	public void paintComponent(Graphics gg) {
