@@ -51,32 +51,11 @@ public class GCodePane extends JComponent {
 	List<GCode> gcode = new ArrayList<>();
 	volatile boolean gcodeUpdated = false;
 
-	Runnable repainter = new Runnable() {
-		@Override
-		public void run() {
-			synchronized (repainter) {
-				repainterPending = false;
-			}
-			repaint();
-		}
-	};
-	volatile boolean repainterPending = false;
-
-	void fireRepainter() {
-		synchronized (repainter) {
-			if (!repainterPending) {
-				repainterPending = true;
-				SwingUtilities.invokeLater(repainter);
-			}
-		}
-	}
-
 	void clear() {
 		synchronized (gcode) {
 			gcode.clear();
 			gcodeUpdated = true;
 		}
-		fireRepainter();
 	}
 
 	void moveTo(double xmm, double ymm) {
@@ -84,7 +63,6 @@ public class GCodePane extends JComponent {
 			gcode.add(new MoveTo((float) xmm, (float) ymm));
 			gcodeUpdated = true;
 		}
-		fireRepainter();
 	}
 
 	void lineTo(double xmm, double ymm) {
@@ -92,7 +70,6 @@ public class GCodePane extends JComponent {
 			gcode.add(new LineTo((float) xmm, (float) ymm));
 			gcodeUpdated = true;
 		}
-		fireRepainter();
 	}
 
 	void moveTo(int xmm, int ymm) {
@@ -100,7 +77,6 @@ public class GCodePane extends JComponent {
 			gcode.add(new MoveTo((float) xmm, (float) ymm));
 			gcodeUpdated = true;
 		}
-		fireRepainter();
 	}
 
 	void lineTo(int xmm, int ymm) {
@@ -108,10 +84,10 @@ public class GCodePane extends JComponent {
 			gcode.add(new LineTo((float) xmm, (float) ymm));
 			gcodeUpdated = true;
 		}
-		fireRepainter();
 	}
 
 	public GCodePane() {
+		setDoubleBuffered(true);
 	}
 
 	public boolean isBlackOnWhite() {

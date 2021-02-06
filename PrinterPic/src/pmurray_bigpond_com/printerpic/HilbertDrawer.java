@@ -1,6 +1,8 @@
 package pmurray_bigpond_com.printerpic;
 
+import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
+import java.awt.image.Raster;
 import java.util.function.Consumer;
 
 enum HDir {
@@ -8,13 +10,17 @@ enum HDir {
 }
 
 public class HilbertDrawer extends Drawer {
+	boolean fillBlack;
+	double gamma;
 
-	public HilbertDrawer(BufferedImage img, GCodePane g) {
+	public HilbertDrawer(BufferedImage img, GCodePane g, boolean fillBlack, double gamma) {
 		super(img, g);
+		this.fillBlack = fillBlack;
+		this.gamma = gamma;
 	}
 
 	boolean first = true;
-	
+
 	@Override
 	void go() {
 		drawQuadrant(0, 0, 0, HDir.LL_LR);
@@ -31,9 +37,15 @@ public class HilbertDrawer extends Drawer {
 	 * @param hdir
 	 *            - if this quadrant needs to be broken into 4, this is how to draw
 	 *            the smaller fractal
+	 * @throws InterruptedException
 	 * 
 	 */
 	void drawQuadrant(final int depth, final int qx, final int qy, HDir hdir) {
+		if (stop)
+			return;
+		if (Thread.interrupted())
+			return;
+
 		Consumer<HDir> UL = h -> drawQuadrant(depth + 1, qx * 2, qy * 2, h);
 		Consumer<HDir> UR = h -> drawQuadrant(depth + 1, qx * 2 + 1, qy * 2, h);
 		Consumer<HDir> LL = h -> drawQuadrant(depth + 1, qx * 2, qy * 2 + 1, h);
@@ -98,18 +110,93 @@ public class HilbertDrawer extends Drawer {
 			int sz = 1 << depth;
 			double xw = (double) g.getWidthmm() / (double) sz;
 			double yw = (double) g.getHeightmm() / (double) sz;
-			if(first) {
-			g.moveTo(xw * (qx + .5), yw * (qy + .5));
-			first = false;
+			if (first) {
+				g.moveTo(xw * (qx + .5), yw * (qy + .5));
+				first = false;
 			} else {
 				g.lineTo(xw * (qx + .5), yw * (qy + .5));
-				
+
 			}
 		}
 	}
 
 	private boolean need_need_to_break(int depth, int qx, int qy) {
-		return depth <= 2;
+		double multiplier = 1 << depth;
+
+		// If I were to break this quadrant, how densely would the square be covered in
+		// filament?
+
+		double quadWidth = g.getWidthmm() / multiplier;
+		double quadHeight = g.getHeightmm() / multiplier;
+
+		// I'll just pretend that the path of the filament isn't missing a side
+		double filamentLength = quadWidth + quadHeight;
+
+		double coverage = (filamentLength * g.getNozzleWidth()) / (quadWidth * quadHeight);
+
+		// once we black out the flament, return. This is a boundary condition to
+		// prevent infinite recursion
+		// for pure black/pure white.
+		if (coverage >= 2)
+			return false;
+
+		// ok. So if I were to split the quadrant into 4, I'd expect about that much
+		// coverage.
+		// so. How dark is this quadrant of the image?
+
+		Rectangle sample = new Rectangle(//
+				(int) (img.getWidth() / (double) multiplier * qx), //
+				(int) (img.getHeight() / (double) multiplier * qy), //
+				(int) (img.getWidth() / (double) multiplier), //
+				(int) (img.getHeight() / (double) multiplier));
+
+		// are we down to less than a pixel?
+		// this can happen if we are drawing a fine curve over a coarse pixelated image
+
+		if (sample.x < 0)
+			sample.x = 0;
+		if (sample.y < 0)
+			sample.y = 0;
+		if (sample.x + sample.width >= img.getWidth())
+			sample.width = img.getWidth() - sample.x;
+		if (sample.y + sample.height >= img.getHeight())
+			sample.height = img.getHeight() - sample.y;
+		if (sample.width < 1)
+			sample.width = 1;
+		if (sample.height < 1)
+			sample.height = 1;
+
+		// ok! get the average brightness
+		Raster data = img.getData(sample);
+
+		// I know my images are black and white 1 byte
+		int[] d = new int[256];
+		long total = 0;
+
+		for (int y = 0; y < sample.height; y++) {
+			for (int x = 0; x < sample.width; x++) {
+				try {
+					data.getPixel(sample.x + x, sample.y + y, d);
+				} catch (RuntimeException ex) {
+					System.err.println(sample);
+					System.err.println(data);
+					System.err.println(x);
+					System.err.println(y);
+
+					throw ex;
+				}
+				total += d[0];
+			}
+		}
+
+		double targetCoverage = total / 256.0 / (double) sample.width / (double) sample.height;
+
+		if (fillBlack)
+			targetCoverage = 1 - targetCoverage; // convert black to white
+
+		targetCoverage = Math.pow(targetCoverage, 1/gamma);
+		
+		return coverage < targetCoverage;
 	}
 
 }

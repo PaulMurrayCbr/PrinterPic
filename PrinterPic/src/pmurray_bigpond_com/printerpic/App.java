@@ -25,7 +25,9 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
+import javax.swing.JSlider;
 import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
 import javax.swing.border.TitledBorder;
 import javax.swing.filechooser.FileSystemView;
 
@@ -36,11 +38,14 @@ public class App extends JFrame {
 
 	BufferedImage img;
 
+	boolean fillBlack = true;
+	double gamma = .5;
+
 	public App() {
 		JMenuBar bar = new JMenuBar();
 		JMenu menu;
 		JMenuItem item;
-		menu = new JMenu("USBTerm");
+		menu = new JMenu("Hilbert Image Thingy");
 		item = new JMenuItem("Exit");
 		menu.add(item);
 		bar.add(menu);
@@ -193,6 +198,48 @@ public class App extends JFrame {
 		}
 		ln.add(new JLabel("mm"));
 
+		pp = new JPanel();
+		pp.setBorder(new TitledBorder("Generation"));
+		pp.setLayout(new BoxLayout(pp, BoxLayout.Y_AXIS));
+		controlPanel.add(pp);
+
+		ln = new JPanel();
+		ln.setLayout(new BoxLayout(ln, BoxLayout.X_AXIS));
+		pp.add(ln);
+		{
+			final JRadioButton d = new JRadioButton("Fill Black");
+			ln.add(d);
+			d.setSelected(fillBlack);
+			final JRadioButton l = new JRadioButton("FillWhite");
+			ln.add(l);
+			l.setSelected(!fillBlack);
+
+			final ButtonGroup btns = new ButtonGroup();
+			btns.add(d);
+			btns.add(l);
+			d.addActionListener(e -> {
+				fillBlack = true;
+				renderImage(img);
+			});
+			l.addActionListener(e -> {
+				fillBlack = false;
+				renderImage(img);
+			});
+		}
+		ln = new JPanel();
+		ln.setLayout(new BoxLayout(ln, BoxLayout.X_AXIS));
+		pp.add(ln);
+		{
+			ln.add(new JLabel("gamma"));
+			JSlider sld = new JSlider(0, 1000, 500);
+			ln.add(sld);
+
+			sld.addChangeListener(e -> {
+				gamma = Math.pow(20, sld.getValue() / 500.0 - 1);
+				renderImage(img);
+			});
+		}
+
 	}
 
 	private void loadFile() {
@@ -308,28 +355,20 @@ public class App extends JFrame {
 			synchronized (cgodePaneOwnerMutex) {
 				nextGcodePaneOwner = this; // I am the newest and latest owner of the mutex.
 				if (gcodePaneOwner != null && gcodePaneOwner.isAlive()) {
-					System.out.println(this + " is stopping " + gcodePaneOwner);
-
 					gcodePaneOwner.d.stopDrawing();
 					gcodePaneOwner.interrupt();
 
 					while (gcodePaneOwner != null && gcodePaneOwner.isAlive()) {
 						try {
-							System.out.println(this + " waiting on mutex");
 							cgodePaneOwnerMutex.wait();
 						} catch (InterruptedException e) {
 						}
-						System.out.println(this + " waking up");
 					}
-					System.out.println(this + " has stopped the previously running drawer");
 				}
 
 				if (nextGcodePaneOwner == this) {
 					gcodePaneOwner = this;
-					System.out.println(this + " is now the drawer owner");
 				} else {
-					System.out.println("while " + this + " was waiting for the previous drawer to stop, "
-							+ nextGcodePaneOwner + " became the next drawer!");
 					return;
 				}
 
@@ -338,11 +377,10 @@ public class App extends JFrame {
 				d.go();
 			} finally {
 				synchronized (cgodePaneOwnerMutex) {
+					SwingUtilities.invokeLater(() -> gcodePAne.repaint());
 					if (gcodePaneOwner == this) {
-						System.out.println(this + " is finishing up");
 						gcodePaneOwner = null;
 						cgodePaneOwnerMutex.notifyAll();
-						System.out.println(this + " is no longer the owner");
 					}
 				}
 			}
@@ -354,7 +392,7 @@ public class App extends JFrame {
 			return;
 		gcodePAne.clear();
 		// I know it's rude to spawn threads rather than spawing drawers ... but meh.
-		new DrawerThread(new HilbertDrawer(img, gcodePAne)).start();
+		new DrawerThread(new HilbertDrawer(img, gcodePAne, fillBlack, gamma)).start();
 
 	}
 
