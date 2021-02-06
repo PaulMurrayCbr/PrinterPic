@@ -284,9 +284,14 @@ public class App extends JFrame {
 
 	final Object cgodePaneOwnerMutex = new Object();
 	volatile DrawerThread gcodePaneOwner = null;
+	volatile DrawerThread nextGcodePaneOwner = null;
 
 	class DrawerThread extends Thread {
 		final Drawer d;
+
+		public String toString() {
+			return d + "-thread";
+		}
 
 		DrawerThread(Drawer d) {
 			this.d = d;
@@ -295,34 +300,43 @@ public class App extends JFrame {
 
 		public void run() {
 			synchronized (cgodePaneOwnerMutex) {
+				nextGcodePaneOwner = this; // I am the newest and latest owner of the mutex.
 				if (gcodePaneOwner != null && gcodePaneOwner.isAlive()) {
-					System.out.println(d.serial + " is stopping " + gcodePaneOwner.d.serial);
-					
+					System.out.println(this + " is stopping " + gcodePaneOwner);
+
 					gcodePaneOwner.d.stopDrawing();
 					gcodePaneOwner.interrupt();
-					
+
 					while (gcodePaneOwner != null && gcodePaneOwner.isAlive()) {
 						try {
-							System.out.println(d.serial + " waiting on mutex");
+							System.out.println(this + " waiting on mutex");
 							cgodePaneOwnerMutex.wait();
 						} catch (InterruptedException e) {
 						}
-						System.out.println(d.serial + " waking up");
+						System.out.println(this + " waking up");
 					}
-					System.out.println(d.serial + " has stopped the previously running drawer");
-				} 
-				gcodePaneOwner = this;
-				System.out.println(d.serial + " is now the drawer owner");
+					System.out.println(this + " has stopped the previously running drawer");
+				}
+
+				if (nextGcodePaneOwner == this) {
+					gcodePaneOwner = this;
+					System.out.println(this + " is now the drawer owner");
+				} else {
+					System.out.println("while " + this + " was waiting for the previous drawer to stop, "
+							+ nextGcodePaneOwner + " became the next drawer!");
+					return;
+				}
+
 			}
 			try {
 				d.go();
 			} finally {
 				synchronized (cgodePaneOwnerMutex) {
 					if (gcodePaneOwner == this) {
-						System.out.println(d.serial + " is finishing up");
+						System.out.println(this + " is finishing up");
 						gcodePaneOwner = null;
 						cgodePaneOwnerMutex.notifyAll();
-						System.out.println(d.serial + " is no longer the owner");
+						System.out.println(this + " is no longer the owner");
 					}
 				}
 			}

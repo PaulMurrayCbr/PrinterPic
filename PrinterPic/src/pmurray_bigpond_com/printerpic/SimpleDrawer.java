@@ -9,14 +9,19 @@ public class SimpleDrawer extends Drawer {
 	}
 	
 	void go() {
-		System.out.println("Ok! Time to draw! " + serial);
+		System.out.println("Ok! Time to draw " + this + "!");
 		try {
-			Thread.sleep(10000L);
+			g.clear();
+			for(int i = 0; i < 100; i+= 10) {
+				g.lineTo(75,  i);
+				g.lineTo(25, i+5);
+				Thread.sleep(1000L);
+			}
 		} catch (InterruptedException e) {
-			System.out.println("Interrupted! " + serial);
+			System.out.println(this + " Interrupted!");
 			return;
 		}
-		System.out.println("Done drawing! " + serial);
+		System.out.println(this + " done drawing.");
 	}
 	
 }

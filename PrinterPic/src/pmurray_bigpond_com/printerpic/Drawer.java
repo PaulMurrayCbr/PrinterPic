@@ -22,4 +22,8 @@ abstract class Drawer {
 
 	abstract void go();
 
+	
+	public String toString() {
+		return getClass().getSimpleName() + "-" + serial;
+	}
 }

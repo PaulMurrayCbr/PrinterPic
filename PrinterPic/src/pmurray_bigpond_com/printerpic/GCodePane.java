@@ -149,8 +149,6 @@ public class GCodePane extends JComponent {
 			g.setStroke(new BasicStroke(nozzleWidth));
 			g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-			g.drawOval(0, 0, 100, 100);
-
 			Path2D path = new Path2D.Double();
 			path.moveTo(0, 0);
 
