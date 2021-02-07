@@ -168,15 +168,18 @@ public class HilbertDrawer extends Drawer {
 
 		// ok! get the average brightness
 		Raster data = img.getData(sample);
+		Raster alpha = img.getAlphaRaster();
 
 		// I know my images are black and white 1 byte
-		int[] d = new int[256];
-		long total = 0;
+		int[] d = new int[4];
+		long totalRed = 0;
+		long totalAlpha = 0;
 
 		for (int y = 0; y < sample.height; y++) {
 			for (int x = 0; x < sample.width; x++) {
 				try {
 					data.getPixel(sample.x + x, sample.y + y, d);
+					totalRed += d[0];
 				} catch (RuntimeException ex) {
 					System.err.println(sample);
 					System.err.println(data);
@@ -185,17 +188,35 @@ public class HilbertDrawer extends Drawer {
 
 					throw ex;
 				}
-				total += d[0];
+
+				if (alpha != null) {
+					try {
+						alpha.getPixel(sample.x + x, sample.y + y, d);
+						totalAlpha += d[0];
+					} catch (RuntimeException ex) {
+						System.err.println(sample);
+						System.err.println(data);
+						System.err.println(x);
+						System.err.println(y);
+
+						throw ex;
+					}
+				}
+
 			}
 		}
 
-		double targetCoverage = total / 256.0 / (double) sample.width / (double) sample.height;
+		double targetCoverage = totalRed / 256.0 / (double) sample.width / (double) sample.height;
 
 		if (fillBlack)
 			targetCoverage = 1 - targetCoverage; // convert black to white
 
-		targetCoverage = Math.pow(targetCoverage, 1/gamma);
-		
+		if (alpha != null) {
+			targetCoverage *= totalAlpha / 256.0 / (double) sample.width / (double) sample.height;
+		}
+
+		targetCoverage = Math.pow(targetCoverage, 1 / gamma);
+
 		return coverage < targetCoverage;
 	}
 

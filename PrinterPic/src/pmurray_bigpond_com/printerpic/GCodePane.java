@@ -43,8 +43,14 @@ public class GCodePane extends JComponent {
 		repaint();
 	}
 
+	public void setOverExtrude(float overExtrude) {
+		this.overExtrude = overExtrude;
+		repaint();
+	}
+	
 	int heightmm = 100;
 	float nozzleWidth = .5f;
+	float overExtrude = 1;
 
 	boolean blackOnWhite = true;
 
@@ -123,7 +129,7 @@ public class GCodePane extends JComponent {
 			g.fillRect(0, 0, widthmm, heightmm);
 
 			g.setColor(blackOnWhite ? PaintUtils.black : PaintUtils.white);
-			g.setStroke(new BasicStroke(nozzleWidth));
+			g.setStroke(new BasicStroke(nozzleWidth * overExtrude));
 			g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
 			Path2D path = new Path2D.Double();

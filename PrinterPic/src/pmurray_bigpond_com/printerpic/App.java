@@ -11,7 +11,11 @@ import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorConvertOp;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 
 import javax.imageio.ImageIO;
 import javax.swing.BoxLayout;
@@ -59,6 +63,9 @@ public class App extends JFrame {
 		item = new JMenuItem("Test Pattern");
 		item.addActionListener((e) -> loadTestPattern());
 		menu.add(item);
+		item = new JMenuItem("Export");
+		item.addActionListener((e) -> exportGCode());
+		menu.add(item);
 		bar.add(menu);
 		item.addActionListener(e -> {
 		});
@@ -81,6 +88,83 @@ public class App extends JFrame {
 		gcodePAne.setBorder(new TitledBorder("Print"));
 
 		loadTestPattern();
+	}
+
+	private void exportGCode() {
+		JFileChooser jfc = new JFileChooser(FileSystemView.getFileSystemView().getHomeDirectory());
+
+		int returnValue = jfc.showSaveDialog(null);
+		// int returnValue = jfc.showSaveDialog(null);
+
+		if (returnValue != JFileChooser.APPROVE_OPTION)
+			return;
+
+		File selectedFile = jfc.getSelectedFile();
+
+		try (PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(selectedFile)))) {
+			boolean extruder = false;
+			pw.println("; todo: turn on fan");
+			pw.println("; todo: set units to mm");
+			pw.println("; todo: set movement to absolute");
+			pw.println("; todo: home");
+			pw.println("G0 Z50 ; nozzle at 50 during heatup");
+			pw.println("; todo: turn heater on and wait for it to heat up");
+			pw.println("G0 Z10 ; nozzle at 10 mm for drawing");
+
+			double x = -1000;
+			double y = -1000;
+
+			// I'll just assume the first one is a move. Meh
+			for (GCode g : gcodePAne.gcode) {
+				if (g instanceof MoveTo) {
+					if (extruder) {
+						pw.println("; todo: turn extruder off");
+						extruder = true;
+					}
+					MoveTo mt = (MoveTo) g;
+					pw.print("G0");
+					if (x != mt.xmm) {
+						pw.print(" X" + mt.xmm);
+						x = mt.xmm;
+					}
+					if (y != mt.ymm) {
+						pw.print(" Y" + mt.ymm);
+						y = mt.ymm;
+					}
+					pw.println("");
+				} else if (g instanceof LineTo) {
+					if (!extruder) {
+						pw.println("; todo: turn extruder on");
+						extruder = true;
+					}
+					LineTo lt = (LineTo) g;
+					pw.print("G1");
+					if (x != lt.xmm) {
+						pw.print(" X" + lt.xmm);
+						x = lt.xmm;
+					}
+					if (y != lt.ymm) {
+						pw.print(" Y" + lt.ymm);
+						y = lt.ymm;
+					}
+					pw.println("");
+				}
+			}
+
+			if (extruder) {
+				pw.println("; todo: turn extruder off");
+				extruder = true;
+			}
+			pw.println("G0 Z50 ; lift nozzle at the end of the job");
+			pw.println("; todo: turn heater off");
+			pw.println("; todo: turn fan off");
+			pw.flush();
+			pw.close();
+
+		} catch (FileNotFoundException e) {
+			JOptionPane.showMessageDialog(this, e);
+		}
+
 	}
 
 	private void setupControlPanel(JPanel controlPanel) {
@@ -161,7 +245,7 @@ public class App extends JFrame {
 		ln.add(new JLabel("mm"));
 
 		pp = new JPanel();
-		pp.setBorder(new TitledBorder("Filament"));
+		pp.setBorder(new TitledBorder("Nozzle"));
 		controlPanel.add(pp);
 
 		pp.setLayout(new BoxLayout(pp, BoxLayout.Y_AXIS));
@@ -195,8 +279,22 @@ public class App extends JFrame {
 			btns.add(l);
 			d.addActionListener(e -> gcodePAne.setBlackOnWhite(true));
 			l.addActionListener(e -> gcodePAne.setBlackOnWhite(false));
+
 		}
 		ln.add(new JLabel("mm"));
+
+		ln = new JPanel();
+		ln.setLayout(new BoxLayout(ln, BoxLayout.X_AXIS));
+		pp.add(ln);
+		{
+			ln.add(new JLabel("Overextrude"));
+			JSlider sld = new JSlider(0, 1000, 500);
+			ln.add(sld);
+
+			sld.addChangeListener(e -> {
+				gcodePAne.setOverExtrude((float) Math.pow(3, sld.getValue() / 500.0 - 1));
+			});
+		}
 
 		pp = new JPanel();
 		pp.setBorder(new TitledBorder("Generation"));
@@ -242,6 +340,9 @@ public class App extends JFrame {
 
 	}
 
+	ColorConvertOp colorConvert = new ColorConvertOp(ColorSpace.getInstance(ColorSpace.CS_GRAY), null);
+
+	
 	private void loadFile() {
 		JFileChooser jfc = new JFileChooser(FileSystemView.getFileSystemView().getHomeDirectory());
 		int returnValue = jfc.showOpenDialog(null);
@@ -260,7 +361,6 @@ public class App extends JFrame {
 			return;
 		}
 
-		ColorConvertOp colorConvert = new ColorConvertOp(ColorSpace.getInstance(ColorSpace.CS_GRAY), null);
 		colorConvert.filter(image, image);
 
 		this.img = image;
@@ -331,6 +431,7 @@ public class App extends JFrame {
 
 		});
 		gg.dispose();
+		colorConvert.filter(img, img);
 		imagePane.setImage(img);
 		renderImage(img);
 	}
